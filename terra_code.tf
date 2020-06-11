@@ -4,7 +4,7 @@ provider "aws" {
 
 resource "aws_key_pair" "dep_key" {
   key_name = "rhskey"
-  public_key = file("/terraform/test/rhskey.pem")
+  public_key = file("/terraform/test/pubkey.pem")
 }
 
 
