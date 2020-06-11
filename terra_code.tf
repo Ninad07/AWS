@@ -1,17 +1,13 @@
-#AWS
 provider "aws" {
   region = "ap-south-1" 
 }
 
-#Generating a new key-pair
 resource "aws_key_pair" "dep_key" {
   key_name = "rhskey"
-  
-  #Use the public key created from PuTTY gen
-  public_key = "ssh-rsa AAAAB3NzaC1yc........."
+  public_key = file("/terraform/test/rhskey.pem")
 }
 
-#Creating a Security Group
+
 resource "aws_security_group" "rh-security-1" {
   name        = "rh-security-1"
   description = "Allow TLS inbound traffic"
@@ -32,6 +28,14 @@ resource "aws_security_group" "rh-security-1" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   
+  ingress {
+    description = "Jenkins"
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -45,7 +49,7 @@ resource "aws_security_group" "rh-security-1" {
 }
 
 
-#Creatig the instance
+
 resource "aws_instance" "rhel_apache_server" {
   ami = "ami-0155e924daafe6d06"
   instance_type = "t2.micro"
@@ -57,9 +61,23 @@ resource "aws_instance" "rhel_apache_server" {
     Name = "Web-Server"
   }
 
+  connection {
+    type = "ssh"
+    user = "ec2-user"
+    private_key = file("/terraform/test/mykey.pem")
+    host = aws_instance.rhel_apache_server.public_ip
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo yum install httpd php git -y",
+      "sudo systemctl restart httpd",
+      "sudo systemctl enable httpd",
+    ]
+  }
+
 }
 
-#Creating and attaching the EBS volume
 resource "aws_ebs_volume" "rhel_ebs" {
   availability_zone = "ap-south-1a"
   size = 1
@@ -73,9 +91,10 @@ resource "aws_volume_attachment" "rhel_ebs_att" {
   device_name = "/dev/sdd"
   volume_id   = aws_ebs_volume.rhel_ebs.id
   instance_id = aws_instance.rhel_apache_server.id
+  force_detach = true
 }
 
-#Creating an S3 Bucket
+
 resource "aws_s3_bucket" "rhel-s3-bucket01" {
   bucket = "rhel-s3-bucket01"
   acl    = "private"
@@ -148,7 +167,42 @@ resource "aws_cloudfront_distribution" "cloudfront_dist" {
   }
 }
 
-#Printing the AZ and IP of the instance
+#Mounting the EBS volume
+resource "null_resource" "mounting" {
+
+  depends_on = [
+    aws_volume_attachment.rhel_ebs_att,
+  ]
+
+  connection {
+    type = "ssh"
+    user = "ec2-user"
+    private_key = file("/terraform/test/mykey.pem")
+    host = aws_instance.rhel_apache_server.public_ip
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo mkfs.ext4 /dev/xvdd",
+      "sudo mount /dev/xvdd /var/www/html",
+      "sudo rm -rf /var/www/html",
+      "sudo git clone https://github.com/Ninad07/AWS.git /var/www/html",
+    ]
+  }
+}
+
+resource "null_resource" "Testing" {
+
+  depends_on = [
+    null_resource.mounting,
+  ]
+  
+  provisioner "local-exec" {
+    command = "firefox ${aws_instance.rhel_apache_server.public_ip}"
+  }
+}
+
+
 output "az" {
   value = aws_instance.rhel_apache_server.availability_zone
 }
