@@ -64,7 +64,7 @@ resource "aws_instance" "rhel_apache_server" {
   connection {
     type = "ssh"
     user = "ec2-user"
-    private_key = file("/terraform/test/mykey.pem")
+    private_key = file("/terraform/test/rhkey.pem")
     host = aws_instance.rhel_apache_server.public_ip
   }
 
@@ -177,7 +177,7 @@ resource "null_resource" "mounting" {
   connection {
     type = "ssh"
     user = "ec2-user"
-    private_key = file("/terraform/test/mykey.pem")
+    private_key = file("/terraform/test/rhkey.pem")
     host = aws_instance.rhel_apache_server.public_ip
   }
 
