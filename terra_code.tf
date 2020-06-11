@@ -71,7 +71,7 @@ resource "aws_instance" "rhel_apache_server" {
   provisioner "remote-exec" {
     inline = [
       "sudo yum install httpd php git -y",
-      "setenforce 0"
+      "setenforce 0",
       "sudo systemctl restart httpd",
       "sudo systemctl enable httpd",
     ]
@@ -187,7 +187,7 @@ resource "null_resource" "mounting" {
       "sudo mkfs.ext4 /dev/xvdd",
       "sudo mount /dev/xvdd /var/www/html",
       "sudo rm -rf /var/www/html",
-      "setenforce 0"
+      "setenforce 0",
       "sudo git clone https://github.com/Ninad07/AWS.git /var/www/html",
     ]
   }
